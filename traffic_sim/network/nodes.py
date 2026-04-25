@@ -217,4 +217,3 @@ class Sink(Node):
             for v in ready_to_exit:
                 self.accept_vehicle(v)
                 incoming_road.remove_vehicle(v, incoming_dir)
-
