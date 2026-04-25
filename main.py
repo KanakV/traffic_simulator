@@ -1,7 +1,8 @@
 import time
 import random
 
-from traffic_sim.network.nodes import Source, Sink, Junction
+from traffic_sim.network.nodes import Source, Sink
+from traffic_sim.network.nodes import TrafficSignalJunction as Junction
 from traffic_sim.network.links import Road
 from traffic_sim.direction import Direction
 from traffic_sim.vehicle import Vehicle

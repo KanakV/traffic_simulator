@@ -33,6 +33,91 @@ class Node:
     def __repr__(self):
         return f"Node({self.node_id})"
 
+class TrafficSignalJunction(Node):
+    def __init__(self, node_id, green_time=5.0, processing_delay=0.3): 
+        super().__init__(node_id)
+        self.router = None
+        
+        self.processing_delay = processing_delay
+        self.timer = 0.0
+        self.current_vehicle = None 
+        
+        self.green_time = green_time
+        self.phase_timer = green_time
+        self.active_index = 0
+
+    def step(self, dt):
+        if not self.incoming:
+            return
+
+        # Helper function to check if an incoming road has a queue
+        def has_queue(index):
+            road, direction = self.incoming[index]
+            return len(road.get_exit_ready(direction)) > 0
+
+        # ---------------------------------------------------------
+        # PHASE 0: Smart Traffic Light Update (Demand-Responsive)
+        # ---------------------------------------------------------
+        self.phase_timer -= dt
+        
+        # We switch the light IF the timer runs out OR the current green light is empty
+        if self.phase_timer <= 0 or not has_queue(self.active_index):
+            next_index = -1
+            
+            # Loop through the other roads to find who needs the green light next.
+            # We check up to len(self.incoming) so that if only the CURRENT road
+            # has a queue, it will just re-trigger its own green light!
+            for i in range(1, len(self.incoming) + 1):
+                check_idx = (self.active_index + i) % len(self.incoming)
+                if has_queue(check_idx):
+                    next_index = check_idx
+                    break
+            
+            if next_index != -1:
+                # Give the green light to the first road we found with a queue
+                self.active_index = next_index
+                self.phase_timer = self.green_time
+            else:
+                # No roads have any cars waiting. Idle the timer at 0 until someone arrives.
+                self.phase_timer = 0.0
+
+        # ---------------------------------------------------------
+        # PHASE 1: A vehicle is physically inside the intersection
+        # ---------------------------------------------------------
+        if self.current_vehicle is not None:
+            if self.timer > 0:
+                self.timer -= dt
+                return
+            
+            v = self.current_vehicle
+            if not v.destination:
+                self.current_vehicle = None 
+                return
+                
+            path = self.router.get_shortest_path(self, v.destination)
+            if not path:
+                self.current_vehicle = None
+                return
+                
+            next_road, next_dir = path[0]
+            
+            if next_road.add_vehicle(v, next_dir):
+                self.current_vehicle = None 
+            return
+
+        # ---------------------------------------------------------
+        # PHASE 2: Intersection empty. Intake from the GREEN road.
+        # ---------------------------------------------------------
+        # Only pull a car if the currently active road actually has a queue
+        if has_queue(self.active_index):
+            active_road, active_dir = self.incoming[self.active_index]
+            ready_to_exit = active_road.get_exit_ready(active_dir)
+            
+            v = ready_to_exit[0]
+            active_road.remove_vehicle(v, active_dir)
+            self.current_vehicle = v
+            self.timer = self.processing_delay
+
 # Junction with delay and scheduling 
 class Junction(Node):
     def __init__(self, node_id, processing_delay=0.3): # Default 1 sec delay
