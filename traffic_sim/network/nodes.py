@@ -94,7 +94,7 @@ class Junction(Node):
         incoming_road.remove_vehicle(v, incoming_dir)
         self.current_vehicle = v
         self.timer = self.processing_delay
-    
+
 # Minimal Working Junction
 class MinimalJunction(Node):
     def __init__(self, node_id):

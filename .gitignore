@@ -18,3 +18,9 @@ Thumbs.db
 # IDE and Editor folders
 .vscode/
 .idea/
+
+git_repo
+*.zip
+*.png
+*.pdf
+*.gif

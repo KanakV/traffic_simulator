@@ -13,9 +13,8 @@ from traffic_sim.stats import StatisticTracker
 # -----------------------------
 # Config
 # -----------------------------
-TOTAL_STEPS = 100
+TOTAL_STEPS = 1000
 DT = 0.1
-
 
 # -----------------------------
 # Main Simulation
@@ -48,6 +47,7 @@ def main():
     builder.add_road("R7", src2, j3, 15, 20)
     builder.add_road("R8", j3, sink1, 15, 20)
     builder.add_road("R9", j2, sink2, 15, 20)
+    # builder.add_road("R10", src1, sink1, 15, 20)
 
     # 3. Finalize and extract nodes/roads
     nodes, roads = builder.build()
@@ -56,7 +56,8 @@ def main():
 
     # 4. Initialize Visualiser
     try:
-        vis = Visualiser()
+        # Toggle record_gif=True to save a GIF, or False to save memory
+        vis = Visualiser(record_gif=False) 
         has_visualiser = True
     except NameError:
         print("Visualiser not found. Running in headless mode.")
@@ -79,20 +80,30 @@ def main():
         for node in nodes:
             node.step(dt)
 
-        # Step C: Record Statistics! <---- NEW
+        # Step C: Record Statistics
         tracker.record_step(t, roads, sinks)
+        
+        # Step D: Render visual frame
         if has_visualiser:
             vis.render(nodes, roads, t)
-            time.sleep(0.01)
+            time.sleep(0.1)
         elif step % 10 == 0:
             for r in roads: print(f"  {r}")
             print("-" * 40)
+            
+        # Initial pause so you can see the setup before it starts moving
         if step == 1:
             input("Press Enter to continue...")
 
+    # -----------------------------
+    # Simulation Complete Output
+    # -----------------------------
     tracker.print_summary(sinks)
+    
+    if has_visualiser:
+        vis.save_gif()
+        
     tracker.plot_results()
-
 
 if __name__ == "__main__":
     main()

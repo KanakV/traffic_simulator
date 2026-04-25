@@ -68,3 +68,4 @@ class NetworkBuilder:
                 node.router = router
                 
         return self.nodes, self.roads
+
