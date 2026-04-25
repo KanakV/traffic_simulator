@@ -8,11 +8,13 @@ A custom, discrete-time microscopic traffic simulation engine written in Python.
 - **Dynamic Routing**: Uses a custom `DynamicRouter` (Dijkstra's Algorithm) that calculates the shortest path while actively factoring in real-time traffic congestion on links using a custom BPR (Bureau of Public Roads) function. A classic static `DijkstraRouter` is also available.
 - **Node Variants**:
   - `Source`: Generates traffic at a specified rate (Poisson/Random).
-  - `Sink`: Consumes vehicles and records their exact wait times upon reaching their destination.
+  - `Sink`: Consumes vehicles, records their exact wait times, and efficiently frees vehicle memory to maintain performance over long simulations.
   - `Junction`: Represents intersections. Supports crossing delays where intersections securely handle one car at a time. Contains alternative variants (`MinimalJunction` and `RandomJunction`).
+  - `RoundaboutJunction`: Simulates a roundabout where vehicles merge, travel across a designated angular distance, and exit.
+  - `TrafficSignalJunction`: A smart traffic signal intersection with demand-responsive phases that intelligently gives green lights to roads with active queues.
 - **Network Builder**: Provides an easy-to-use graph API for defining bidirectional or single-direction multi-lane roads, specifying capacities, and automatically interpreting forward/backward traversals.
-- **Detailed Statistics Tracking**: Calculates granular statistics such as Average Wait Time per car, Total Throughput, and average queue backlog per individual road over the course of the simulation.
-- **Live Visualization**: A 2D visualizer that renders nodes, road identifiers, and physical vehicle movement.
+- **Detailed Statistics Tracking**: Calculates granular statistics such as Average Wait Time per car, Total Throughput, and average queue backlog per individual road over the course of the simulation. Supports exporting data to CSV (`simulation_data.csv`) and rendering a comprehensive plotting dashboard (`simulation_dashboard.png`) after the run.
+- **Live Visualization**: A 2D visualizer that renders nodes, road identifiers, and physical vehicle movement. Now features enhanced, smooth animations and the ability to export the entire simulation run as a GIF (`sim.gif`).
 
 ## Project Structure
 
@@ -35,10 +37,14 @@ assignment_6/
 
 This project requires a Python 3 environment.
 
-1. Install dependencies (e.g. `matplotlib` or `pygame` as required by the visualiser):
+1. Install dependencies:
    ```bash
-   pip install matplotlib
+   pip install matplotlib pygame pandas Pillow
    ```
+   - `matplotlib` & `pandas`: Required for generating the statistics dashboard and CSV exports.
+   - `pygame`: Required for the live 2D simulation visualiser.
+   - `Pillow`: Required to optionally record and save the simulation as a `.gif`.
+
 2. Execute the main program:
    ```bash
    python main.py
