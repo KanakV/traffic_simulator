@@ -13,7 +13,7 @@ from traffic_sim.stats import StatisticTracker
 # -----------------------------
 # Config
 # -----------------------------
-TOTAL_STEPS = 10000
+TOTAL_STEPS = 1000
 DT = 0.1
 
 
