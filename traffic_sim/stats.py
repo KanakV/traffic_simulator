@@ -194,3 +194,36 @@ class StatisticTracker:
 
         # 4. Display the plot on screen (Optional: remove this if you ONLY want it saved)
         plt.show()
+    
+    def save_to_csv(self, filename="simulation_data.csv"):
+        """Saves the recorded simulation history to a CSV file."""
+        try:
+            import pandas as pd
+        except ImportError:
+            print("\nCannot save CSV: pandas is not installed.")
+            print("Run 'pip install pandas' in your terminal.")
+            return
+
+        # Prepare the primary time-series data
+        df_base = pd.DataFrame({
+            "Time": self.history["time"],
+            "Throughput": self.history["throughput"],
+            "Network_Backlog": self.history["network_backlog"]
+        })
+
+        # Flatten the queue_lengths dictionary into the main DataFrame
+        # This will create columns like: Queue_R1, Queue_R2, etc.
+        for road_id, q_history in self.history["queue_lengths"].items():
+            df_base[f"Queue_{road_id}"] = q_history
+
+        # Ensure the 'results' directory exists
+        import os
+        save_dir = "results"
+        os.makedirs(save_dir, exist_ok=True)
+        
+        filepath = os.path.join(save_dir, filename)
+        
+        # Save to CSV (index=False keeps it clean)
+        df_base.to_csv(filepath, index=False)
+        print(f"\nSimulation data successfully saved to: {filepath}")
+

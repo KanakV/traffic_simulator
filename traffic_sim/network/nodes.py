@@ -1,5 +1,6 @@
 import random
 from traffic_sim.vehicle import Vehicle
+import math
 
 class Node:
     def __init__(self, node_id):
@@ -32,6 +33,70 @@ class Node:
 
     def __repr__(self):
         return f"Node({self.node_id})"
+
+class RoundaboutJunction(Node):
+    def __init__(self, node_id, capacity=8, full_loop_time=3.0):
+        super().__init__(node_id)
+        self.router = None
+        self.capacity = capacity
+        self.full_loop_time = full_loop_time
+        self.vehicles_in_circle = []
+
+    def step(self, dt):
+        # PHASE 1: Move and Exit
+        for entry in self.vehicles_in_circle[:]:
+            entry['timer'] -= dt
+            if entry['timer'] <= 0:
+                v = entry['veh']
+                next_road = entry['exit_road']
+                path = self.router.get_shortest_path(self, v.destination)
+                if path:
+                    _, next_dir = path[0]
+                    if next_road.add_vehicle(v, next_dir):
+                        self.vehicles_in_circle.remove(entry)
+                else:
+                    self.vehicles_in_circle.remove(entry)
+
+        # PHASE 2: Entrance
+        if len(self.vehicles_in_circle) < self.capacity:
+            waiting = []
+            for road, direction in self.incoming:
+                ready = road.get_exit_ready(direction)
+                if ready: waiting.append((ready[0], road, direction))
+            
+            if waiting:
+                v, in_road, in_dir = random.choice(waiting)
+                path = self.router.get_shortest_path(self, v.destination)
+                if path:
+                    out_road, _ = path[0]
+                    
+                    # Calculate angles for smooth animation
+                    # math.atan2(y, x) gives the angle of the road relative to the junction
+                    in_pos = in_road.node_a.pos if in_road.node_b == self else in_road.node_b.pos
+                    out_pos = out_road.node_b.pos if out_road.node_a == self else out_road.node_a.pos
+                    
+                    start_angle = math.atan2(in_pos[1] - self.pos[1], in_pos[0] - self.pos[0])
+                    end_angle = math.atan2(out_pos[1] - self.pos[1], out_pos[0] - self.pos[0])
+                    
+                    # Ensure we travel clockwise
+                    if end_angle < start_angle:
+                        end_angle += 2 * math.pi
+                    
+                    # Travel time proportional to the angular distance
+                    angular_dist = end_angle - start_angle
+                    travel_time = (angular_dist / (2 * math.pi)) * self.full_loop_time
+                    # Minimum travel time so it doesn't "teleport" to an adjacent exit
+                    travel_time = max(travel_time, 0.5)
+
+                    in_road.remove_vehicle(v, in_dir)
+                    self.vehicles_in_circle.append({
+                        'veh': v, 
+                        'exit_road': out_road, 
+                        'timer': travel_time,
+                        'total_time': travel_time,
+                        'start_angle': start_angle,
+                        'end_angle': end_angle
+                    })
 
 class TrafficSignalJunction(Node):
     def __init__(self, node_id, green_time=5.0, processing_delay=0.3): 

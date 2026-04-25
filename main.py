@@ -3,6 +3,7 @@ import random
 
 from traffic_sim.network.nodes import Source, Sink
 from traffic_sim.network.nodes import TrafficSignalJunction as Junction
+# from traffic_sim.network.nodes import RoundaboutJunction as Junction
 from traffic_sim.network.links import Road
 from traffic_sim.direction import Direction
 from traffic_sim.vehicle import Vehicle
@@ -14,7 +15,7 @@ from traffic_sim.stats import StatisticTracker
 # -----------------------------
 # Config
 # -----------------------------
-TOTAL_STEPS = 1000
+TOTAL_STEPS = 500
 DT = 0.1
 
 # -----------------------------
@@ -105,6 +106,7 @@ def main():
         vis.save_gif()
         
     tracker.plot_results()
+    tracker.save_to_csv("simulation_data.csv")
 
 if __name__ == "__main__":
     main()
