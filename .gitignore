@@ -1,0 +1,20 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Your specific virtual environment
+.ee5150/
+venv/
+env/
+
+# Auto-generated simulation graphs and data
+results/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE and Editor folders
+.vscode/
+.idea/
