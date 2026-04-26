@@ -79,7 +79,20 @@ def main():
     # 3. Finalize and extract nodes/roads
     nodes, roads = builder.build()
     sinks = [n for n in nodes if isinstance(n, Sink)]
+    
+    # NEW: Extract source generation rates to pass to the tracker
+    sources = {n.node_id: n.generation_rate for n in nodes if isinstance(n, Source)}
+    
     tracker = StatisticTracker()
+    
+    # NEW: Pass the configuration to the tracker so it can be logged
+    tracker.set_config(
+        sources=sources, 
+        dt=DT, 
+        total_steps=TOTAL_STEPS,
+        total_nodes=len(nodes),
+        total_roads=len(roads)
+    )
 
     # 4. Initialize Visualiser
     try:
@@ -126,6 +139,9 @@ def main():
     # Simulation Complete Output
     # -----------------------------
     tracker.print_summary(sinks)
+    
+    # NEW: Save the summary report to a text file
+    tracker.save_summary_report(sinks, "simulation_summary.txt")
     
     if has_visualiser:
         vis.save_gif()
