@@ -11,6 +11,19 @@ class StatisticTracker:
         self.last_t = 0.0
         self.total_wait_time = 0.0   
         self.sink_metrics = {}       
+        
+        # NEW: Store configuration metadata for the report
+        self.config_info = {}
+
+    def set_config(self, sources, dt, total_steps, total_nodes, total_roads):
+        """Stores simulation setup details for the final text report."""
+        self.config_info = {
+            "sources": sources,
+            "dt": dt,
+            "total_steps": total_steps,
+            "total_nodes": total_nodes,
+            "total_roads": total_roads
+        }
 
     def _count_queue(self, road, direction):
         """
@@ -50,7 +63,6 @@ class StatisticTracker:
         
         from traffic_sim.direction import Direction
         for road in roads:
-            # NEW: Count the actual contiguous traffic jams
             fwd_q = self._count_queue(road, Direction.FORWARD)
             bwd_q = self._count_queue(road, Direction.BACKWARD)
             total_q = fwd_q + bwd_q
@@ -67,11 +79,10 @@ class StatisticTracker:
         self.total_wait_time += total_waiting_network_wide * dt
 
         # ---------------------------------------------------------
-        # 3. Throughput
+        # 2. Throughput
         # ---------------------------------------------------------
         current_completed = 0
         for sink in sinks:
-            # FIX: Use the new integer counter instead of len(sink.received)
             completed_at_sink = sink.completed_count 
             
             current_completed += completed_at_sink
@@ -79,15 +90,33 @@ class StatisticTracker:
             
         self.history["throughput"].append(current_completed)
 
-    def print_summary(self, sinks):
-        print("\n" + "="*50)
-        print("SIMULATION STATISTIC SUMMARY")
-        print("="*50)
+    def _generate_summary_text(self, sinks):
+        """Generates a formatted string containing all summary statistics and configurations."""
+        lines = []
+        lines.append("\n" + "="*50)
+        lines.append("SIMULATION STATISTIC SUMMARY")
+        lines.append("="*50)
         
         if not self.history["time"]:
-            print("No data recorded.")
-            return
+            lines.append("No data recorded.")
+            return "\n".join(lines)
 
+        # --- NEW: Append Configuration Details ---
+        lines.append("\n[ Configuration Parameters ]")
+        lines.append(f"  Time Step (dt):      {self.config_info.get('dt', 'N/A')} s")
+        lines.append(f"  Total Steps:         {self.config_info.get('total_steps', 'N/A')}")
+        lines.append(f"  Network Size:        {self.config_info.get('total_nodes', 0)} Nodes, {self.config_info.get('total_roads', 0)} Roads")
+        
+        lines.append("\n[ Traffic Generation Rates ]")
+        sources = self.config_info.get("sources", {})
+        if sources:
+            for src_id, rate in sources.items():
+                lines.append(f"  {src_id:<15}: {rate} vehicles/sec")
+        else:
+            lines.append("  No sources defined or recorded.")
+        lines.append("-" * 50)
+
+        # --- Existing Summary Output ---
         final_time = self.history["time"][-1]
         final_throughput = self.history["throughput"][-1]
         
@@ -99,25 +128,46 @@ class StatisticTracker:
         exact_avg_wait = sum(all_wait_times) / len(all_wait_times) if all_wait_times else 0
         throughput_rate = final_throughput / final_time if final_time > 0 else 0
         
-        print(f"Total Time Simulated:         {final_time:.1f} s")
-        print(f"Total Cars Completed:         {final_throughput}")
-        print(f"Exact Average Wait Time:      {exact_avg_wait:.2f} s per car")
-        print(f"Network Average Throughput:   {throughput_rate:.3f} cars/sec")
+        lines.append("\n[ Simulation Results ]")
+        lines.append(f"Total Time Simulated:         {final_time:.1f} s")
+        lines.append(f"Total Cars Completed:         {final_throughput}")
+        lines.append(f"Exact Average Wait Time:      {exact_avg_wait:.2f} s per car")
+        lines.append(f"Network Average Throughput:   {throughput_rate:.3f} cars/sec")
         
-        print("\nThroughput by Destination:")
+        lines.append("\nThroughput by Destination:")
         for sink_id, count in self.sink_metrics.items():
             rate = count / final_time if final_time > 0 else 0
-            print(f"  {sink_id:<15}: {count} cars ({rate:.3f} cars/sec)")
+            lines.append(f"  {sink_id:<15}: {count} cars ({rate:.3f} cars/sec)")
             
-        print("-" * 50)
+        lines.append("-" * 50)
         
-        print("Queue Lengths per Road:")
+        lines.append("Queue Lengths per Road:")
         for road_id, q_history in self.history["queue_lengths"].items():
             avg_q = sum(q_history) / len(q_history)
             max_q = max(q_history)
-            print(f"  {road_id:<15}: Avg {avg_q:.2f} cars | Max {max_q} cars")
+            lines.append(f"  {road_id:<15}: Avg {avg_q:.2f} cars | Max {max_q} cars")
             
-        print("="*50)
+        lines.append("="*50)
+        
+        return "\n".join(lines)
+
+    def print_summary(self, sinks):
+        """Prints the generated summary text to the terminal."""
+        summary_text = self._generate_summary_text(sinks)
+        print(summary_text)
+
+    def save_summary_report(self, sinks, filename="simulation_summary.txt"):
+        """Saves the generated summary text (terminal output + configs) to a file."""
+        summary_text = self._generate_summary_text(sinks)
+        
+        save_dir = "results"
+        os.makedirs(save_dir, exist_ok=True)
+        filepath = os.path.join(save_dir, filename)
+        
+        with open(filepath, "w") as f:
+            f.write(summary_text)
+            
+        print(f"\nText summary successfully saved to: {filepath}")
     
     def plot_results(self, filename="simulation_dashboard.png"):
         """Generates line graphs of the simulation statistics and saves them to a folder."""
@@ -179,20 +229,16 @@ class StatisticTracker:
         plt.tight_layout()
 
         # ---------------------------------------------------------
-        # NEW: Save the plot to the 'results' directory
+        # Save the plot to the 'results' directory
         # ---------------------------------------------------------
-        # 1. Ensure the 'results' directory exists
         save_dir = "results"
         os.makedirs(save_dir, exist_ok=True)
-        
-        # 2. Construct the full file path
         filepath = os.path.join(save_dir, filename)
         
-        # 3. Save the figure (dpi=300 ensures it is high quality/crisp)
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"\nPlots successfully saved to: {filepath}")
 
-        # 4. Display the plot on screen (Optional: remove this if you ONLY want it saved)
+        # Display the plot on screen
         plt.show()
     
     def save_to_csv(self, filename="simulation_data.csv"):
@@ -212,18 +258,14 @@ class StatisticTracker:
         })
 
         # Flatten the queue_lengths dictionary into the main DataFrame
-        # This will create columns like: Queue_R1, Queue_R2, etc.
         for road_id, q_history in self.history["queue_lengths"].items():
             df_base[f"Queue_{road_id}"] = q_history
 
-        # Ensure the 'results' directory exists
         import os
         save_dir = "results"
         os.makedirs(save_dir, exist_ok=True)
-        
         filepath = os.path.join(save_dir, filename)
         
-        # Save to CSV (index=False keeps it clean)
+        # Save to CSV
         df_base.to_csv(filepath, index=False)
-        print(f"\nSimulation data successfully saved to: {filepath}")
-
+        print(f"Simulation data successfully saved to: {filepath}")
