@@ -1,5 +1,6 @@
 import pygame
 import math
+from traffic_sim.direction import Direction
 try:
     from PIL import Image
 except ImportError:
@@ -113,6 +114,26 @@ class Visualiser:
             for v in road._get_vehicles(Direction.FORWARD): self._draw_vehicle_pip(road, v, Direction.FORWARD, self.screen, is_zoomed=False)
             for v in road._get_vehicles(Direction.BACKWARD): self._draw_vehicle_pip(road, v, Direction.BACKWARD, self.screen, is_zoomed=False)
 
+        # Draw vehicles held inside junctions on the main map
+        for node in nodes:
+            node_pos = self._map_coords(node.pos)
+            if hasattr(node, 'current_vehicle') and node.current_vehicle is not None:
+                v = node.current_vehicle
+                color = getattr(v, 'color', self.color_veh)
+                pygame.draw.circle(self.screen, color, node_pos, 4)
+                pygame.draw.circle(self.screen, self.color_bg, node_pos, 4, 1)
+            if hasattr(node, 'vehicles_in_circle'):
+                for entry in node.vehicles_in_circle:
+                    v = entry['veh']
+                    progress = 1.0 - (entry['timer'] / entry['total_time'])
+                    angle = entry['start_angle'] + (entry['end_angle'] - entry['start_angle']) * progress
+                    dist = 9  # small ring radius on main map
+                    vx = node_pos[0] + math.cos(angle) * dist
+                    vy = node_pos[1] + math.sin(angle) * dist
+                    color = getattr(v, 'color', self.color_veh)
+                    pygame.draw.circle(self.screen, color, (int(vx), int(vy)), 4)
+                    pygame.draw.circle(self.screen, self.color_bg, (int(vx), int(vy)), 4, 1)
+
         # Draw Nodes (Squares for ends, Circles for junctions)
         for node in nodes:
             if not node.pos: continue
@@ -124,7 +145,7 @@ class Visualiser:
                 pygame.draw.rect(self.screen, self.color_source, rect)
             elif "Sink" in node_type:
                 rect = pygame.Rect(0, 0, 18, 18); rect.center = pos
-                pygame.draw.rect(self.screen, self.color_sink, rect)
+                pygame.draw.rect(self.screen, getattr(node, 'color', self.color_sink), rect)
             else:
                 # Standard Blue Circle for Junctions
                 pygame.draw.circle(self.screen, self.color_junc, pos, 10)
@@ -215,7 +236,7 @@ class Visualiser:
                 vy = node_pos[1] + math.sin(current_angle) * dist
                 
                 # Draw the moving "pip"
-                pygame.draw.circle(self.screen, self.color_veh_pip, (int(vx), int(vy)), 6)
+                pygame.draw.circle(self.screen, getattr(entry['veh'], 'color', self.color_veh_pip), (int(vx), int(vy)), 6)
                 pygame.draw.circle(self.screen, (0, 0, 0), (int(vx), int(vy)), 6, 1)
                 
         # --- Traffic Signal Visuals (Inside the PiP Box) ---
@@ -262,14 +283,14 @@ class Visualiser:
 
             # Draw the internal vehicle (the one currently 'crossing')
             if node.current_vehicle:
-                pygame.draw.circle(self.screen, self.color_veh_pip, node_pos, 10)
+                pygame.draw.circle(self.screen, getattr(node.current_vehicle, 'color', self.color_veh_pip), node_pos, 10)
                 pygame.draw.circle(self.screen, (0, 0, 0), node_pos, 10, 1)
 
         # Standard/Signal Junction specific internal view (Single vehicle hold)
         elif hasattr(node, 'current_vehicle') and node.current_vehicle is not None:
             pygame.draw.circle(self.screen, self.color_junc, node_pos, 25)
             # Draw the trapped vehicle as a yellow pip dead-center
-            pygame.draw.circle(self.screen, self.color_veh_pip, node_pos, 10)
+            pygame.draw.circle(self.screen, getattr(node.current_vehicle, 'color', self.color_veh_pip), node_pos, 10)
         else:
             # Just draw the blue node
             pygame.draw.circle(self.screen, self.color_junc, node_pos, 25)
@@ -290,11 +311,15 @@ class Visualiser:
 
         start_pos = road.node_a.pos
         end_pos = road.node_b.pos
-        if direction == 1: start_pos, end_pos = end_pos, start_pos
+        if direction == Direction.BACKWARD: start_pos, end_pos = end_pos, start_pos
 
         dx = end_pos[0] - start_pos[0]; dy = end_pos[1] - start_pos[1]
         angle = math.atan2(dy, dx)
-        progress = max(0.0, min(1.0, vehicle.position / road.length))
+        # Normalize against stop_line so vehicles visually reach the junction node,
+        # not freeze 5 units short of it.
+        stop_line = road.length - road.stop_margin
+        visible_length = stop_line if stop_line > 0 else road.length
+        progress = max(0.0, min(1.0, vehicle.position / visible_length))
         sim_x, sim_y = start_pos[0] + (dx * progress), start_pos[1] + (dy * progress)
 
         # Standard map coordinate
@@ -304,12 +329,12 @@ class Visualiser:
         if is_zoomed:
             veh_radius = 6
             lane_offset_mag = 7.0
-            color_veh = self.color_veh_pip # High visibility yellow
+            color_veh = getattr(vehicle, 'color', self.color_veh_pip) # Use assigned color or high visibility yellow
             color_border = (0, 0, 0)       # Dark border to differentiate pips
         else:
             veh_radius = 4
             lane_offset_mag = 4.0
-            color_veh = self.color_veh      # Standard white
+            color_veh = getattr(vehicle, 'color', self.color_veh)      # Use assigned color or standard white
             color_border = self.color_bg   # Background-colored border (minimalist look)
 
         # Apply lane offset normal to the road line

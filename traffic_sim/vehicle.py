@@ -14,6 +14,7 @@ class Vehicle:
 
         self.length = length
         self.total_wait_time = 0.0 
+        self.color = getattr(self.destination, 'color', (236, 240, 241))
 
     # -----------------------------
     def __repr__(self):

@@ -2,6 +2,7 @@ import time
 import random
 
 from traffic_sim.network.nodes import Source, Sink
+# from traffic_sim.network.nodes import Junction
 from traffic_sim.network.nodes import TrafficSignalJunction as Junction
 # from traffic_sim.network.nodes import RoundaboutJunction as Junction
 from traffic_sim.network.links import Road
@@ -25,31 +26,55 @@ def main():
     print("Initializing Simulation...")
     builder = NetworkBuilder()
 
-    # 1. Create Nodes (and set their positions immediately)
-    src1  = builder.add_node(Source("SRC1", generation_rate=2), pos=(0, 0))
-    src2  = builder.add_node(Source("SRC2", generation_rate=4), pos=(100, -100))
-    sink1 = builder.add_node(Sink("SNK1"), pos=(-100, -50))
-    sink2 = builder.add_node(Sink("SNK2"), pos=(150, 100))
-    
-    j1    = builder.add_node(Junction("J1"), pos=(70, 0))
-    j2    = builder.add_node(Junction("J2"), pos=(150, 50))
-    j3    = builder.add_node(Junction("J3"), pos=(-100, -150))
+    src1 = builder.add_node(Source("SRC1", generation_rate=1), pos=(0, 0))
+    src2 = builder.add_node(Source("SRC2", generation_rate=1), pos=(60, 20))
+    sink1 = builder.add_node(Sink("SNK1"), pos=(75, 0))
+    sink2 = builder.add_node(Sink("SNK2"), pos=(10, 20))
+    j1 = builder.add_node(Junction("J1"), pos=(25, 0))
+    j2 = builder.add_node(Junction("J2"), pos=(50, 0))
 
-    # Assign destinations
-    src1.destinations = [sink1, sink2]
-    src2.destinations = [sink1, sink2]
-
-    # 2. Create Roads (Builder auto-connects them!)
     builder.add_road("R1", src1, j1, 15, 20)
-    builder.add_road("R2", j1, j2, 20, 20, bidirectional=True)
-    builder.add_road("R3", j1, sink2, 15, 20)
-    builder.add_road("R4", src2, j2, 25, 30)
-    builder.add_road("R5", src2, j1, 15, 20)
-    builder.add_road("R6", j1, j3, 20, 20, bidirectional=True)
-    builder.add_road("R7", src2, j3, 15, 20)
-    builder.add_road("R8", j3, sink1, 15, 20)
-    builder.add_road("R9", j2, sink2, 15, 20)
-    # builder.add_road("R10", src1, sink1, 15, 20)
+    builder.add_road("R3", j1, j2, 15, 20, bidirectional=True)
+    builder.add_road("R2", j2, sink1, 15, 20)
+    builder.add_road("R4", src2, j2, 15, 20)
+    builder.add_road("R5", j1, sink2, 15, 20)
+
+    src1.destinations = [sink1]
+    src2.destinations = [sink2]
+
+
+    # # 1. Create Nodes (and set their positions immediately)
+    # src1  = builder.add_node(Source("SRC1", generation_rate=2), pos=(0, 0))
+    # src2  = builder.add_node(Source("SRC2", generation_rate=4), pos=(100, -100))
+    # src3  = builder.add_node(Source("SRC3", generation_rate=6), pos=(-100, 100))
+    # sink1 = builder.add_node(Sink("SNK1"), pos=(-100, -50))
+    # sink2 = builder.add_node(Sink("SNK2"), pos=(150, 100))
+    # sink3 = builder.add_node(Sink("SNK3"), pos=(150, -100))
+
+    # j1    = builder.add_node(Junction("J1"), pos=(70, 0))
+    # j2    = builder.add_node(Junction("J2"), pos=(150, 50))
+    # j3    = builder.add_node(Junction("J3"), pos=(-100, -150))
+    # j4    = builder.add_node(Junction("J4"), pos=(100, 100))
+
+    # # Assign destinations
+    # src1.destinations = [sink1, sink2, sink3]
+    # src2.destinations = [sink1, sink2, sink3]
+    # src3.destinations = [sink1, sink2, sink3]
+
+    # # 2. Create Roads (Builder auto-connects them!)
+    # builder.add_road("R1", src1, j1, 15, 20)
+    # builder.add_road("R2", j1, j2, 20, 20, bidirectional=True)
+    # builder.add_road("R3", j1, sink2, 15, 20)
+    # builder.add_road("R4", src2, j2, 25, 30)
+    # builder.add_road("R5", src2, j1, 15, 20)
+    # builder.add_road("R6", j1, j3, 20, 20, bidirectional=True)
+    # builder.add_road("R7", src2, j3, 15, 20)
+    # builder.add_road("R8", j3, sink1, 15, 20)
+    # builder.add_road("R9", j2, sink2, 15, 20)
+    # builder.add_road("R10", src3, j4, 15, 20)
+    # builder.add_road("R11", j4, sink3, 15, 20)
+    # builder.add_road("R12", j4, sink1, 15, 20)
+    # builder.add_road("R13", j2, j4, 15, 20, bidirectional=True)
 
     # 3. Finalize and extract nodes/roads
     nodes, roads = builder.build()
@@ -94,8 +119,8 @@ def main():
             print("-" * 40)
             
         # Initial pause so you can see the setup before it starts moving
-        if step == 1:
-            input("Press Enter to continue...")
+        # if step == 1:
+        #     input("Press Enter to continue...")
 
     # -----------------------------
     # Simulation Complete Output

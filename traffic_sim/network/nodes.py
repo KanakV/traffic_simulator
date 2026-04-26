@@ -348,6 +348,7 @@ class Sink(Node):
         # CHANGE: Replaced the list with a simple integer counter
         self.completed_count = 0
         self.completed_wait_times = []
+        self.color = (random.randint(50, 255), random.randint(50, 255), random.randint(50, 255))
 
     def accept_vehicle(self, vehicle):
         # CHANGE: Just increment the counter
