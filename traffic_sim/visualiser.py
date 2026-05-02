@@ -28,7 +28,7 @@ class Visualiser:
         self.color_bg = (30, 34, 40)          # Deep Charcoal
         self.color_road = (80, 85, 95)        # Muted Slate
         self.color_source = (46, 204, 113)    # Emerald Green
-        self.color_sink = (231, 76, 60)       # Alizarin Red
+        self.color_sink = (231, 76, 60)       # Alizarin Red (Also used for max load)
         self.color_junc = (52, 152, 219)      # Peter River Blue
         self.color_veh = (236, 240, 241)      # Cloud White
         self.color_veh_pip = (241, 196, 15)   # Sunflower Yellow (For zoomed vehicles)
@@ -102,14 +102,35 @@ class Visualiser:
         # =========================================================
         # 1. DRAW STANDARD MAP (Static view)
         # =========================================================
-        # Draw Roads
+        # Draw Roads & Load Indicators
         for road in roads:
             start_pos = self._map_coords(road.node_a.pos)
             end_pos = self._map_coords(road.node_b.pos)
-            pygame.draw.line(self.screen, self.color_road, start_pos, end_pos, 4)
+            
+            # --- NEW: Calculate Load & Determine Color ---
+            fwd_load = len(road._get_vehicles(Direction.FORWARD))
+            bwd_load = len(road._get_vehicles(Direction.BACKWARD))
+            current_load = fwd_load + bwd_load
+            max_load = getattr(road, 'capacity', 10) # Change 10 to a sensible default if capacity is missing
+            
+            # Switch to red if maximum capacity is reached
+            road_color = self.color_sink if current_load >= max_load else self.color_road
+            
+            pygame.draw.line(self.screen, road_color, start_pos, end_pos, 4)
+            
+            # --- NEW: Render Load Text at Road Midpoint ---
+            mid_x = (start_pos[0] + end_pos[0]) / 2
+            mid_y = (start_pos[1] + end_pos[1]) / 2
+            
+            # Use red text if overloaded to make it stand out more
+            text_color = self.color_sink if current_load >= max_load else self.color_text
+            load_text = self.font.render(f"{current_load}/{max_load}", True, text_color)
+            
+            # Center the text slightly above the road line
+            text_rect = load_text.get_rect(center=(int(mid_x), int(mid_y - 12)))
+            self.screen.blit(load_text, text_rect)
 
         # Draw Vehicles ("Pips") on Main Map
-        from traffic_sim.direction import Direction
         for road in roads:
             for v in road._get_vehicles(Direction.FORWARD): self._draw_vehicle_pip(road, v, Direction.FORWARD, self.screen, is_zoomed=False)
             for v in road._get_vehicles(Direction.BACKWARD): self._draw_vehicle_pip(road, v, Direction.BACKWARD, self.screen, is_zoomed=False)
@@ -196,17 +217,34 @@ class Visualiser:
         self.screen.set_clip(rect_box)
 
         # 2. Draw ROADS and VEHICLES connected to this node in high magnification
-        # Use thicker lines/larger pips here
-        from traffic_sim.direction import Direction
         for road in roads:
-            # Only draw roads connected to the focal node
             if road.node_a == node or road.node_b == node:
-                # Use local coordinate system
                 p1 = self._map_coords(road.node_a.pos, local_scale, local_ox, local_oy)
                 p2 = self._map_coords(road.node_b.pos, local_scale, local_ox, local_oy)
                 
+                # --- NEW: Zoom Box Load Coloring ---
+                fwd_load = len(road._get_vehicles(Direction.FORWARD))
+                bwd_load = len(road._get_vehicles(Direction.BACKWARD))
+                current_load = fwd_load + bwd_load
+                max_load = getattr(road, 'capacity', 10)
+                
+                road_color = self.color_sink if current_load >= max_load else self.color_road
+                
                 # Draw thick local road
-                pygame.draw.line(self.screen, self.color_road, p1, p2, 12)
+                pygame.draw.line(self.screen, road_color, p1, p2, 12)
+                
+                # --- NEW: Render Load Text in Zoom Box ---
+                mid_x = (p1[0] + p2[0]) / 2
+                mid_y = (p1[1] + p2[1]) / 2
+                
+                text_color = self.color_sink if current_load >= max_load else (255, 255, 255)
+                load_text = self.font_lg.render(f"{current_load}/{max_load}", True, text_color)
+                
+                # Add a tiny background rect for the text inside the PIP so it doesn't get lost in pips
+                text_rect = load_text.get_rect(center=(int(mid_x), int(mid_y - 25)))
+                bg_rect = text_rect.inflate(6, 4)
+                pygame.draw.rect(self.screen, self.color_bg, bg_rect, border_radius=3)
+                self.screen.blit(load_text, text_rect)
                 
                 # Draw high-magnification "Pips" moving around
                 for v in road._get_vehicles(Direction.FORWARD): 
@@ -245,7 +283,6 @@ class Visualiser:
             
             for i, (incoming_road, incoming_dir) in enumerate(node.incoming):
                 # Calculate the point where the road meets the junction
-                # We'll put the "light" slightly back from the center
                 road_p1 = self._map_coords(incoming_road.node_a.pos, local_scale, local_ox, local_oy)
                 road_p2 = self._map_coords(incoming_road.node_b.pos, local_scale, local_ox, local_oy)
                 
@@ -329,13 +366,13 @@ class Visualiser:
         if is_zoomed:
             veh_radius = 6
             lane_offset_mag = 7.0
-            color_veh = getattr(vehicle, 'color', self.color_veh_pip) # Use assigned color or high visibility yellow
-            color_border = (0, 0, 0)       # Dark border to differentiate pips
+            color_veh = getattr(vehicle, 'color', self.color_veh_pip) 
+            color_border = (0, 0, 0)       
         else:
             veh_radius = 4
             lane_offset_mag = 4.0
-            color_veh = getattr(vehicle, 'color', self.color_veh)      # Use assigned color or standard white
-            color_border = self.color_bg   # Background-colored border (minimalist look)
+            color_veh = getattr(vehicle, 'color', self.color_veh)     
+            color_border = self.color_bg   
 
         # Apply lane offset normal to the road line
         nx = -math.sin(angle) * lane_offset_mag
@@ -357,3 +394,4 @@ class Visualiser:
         print(f"\nStitching {len(self.frames)} frames into GIF at {filename}...")
         self.frames[0].save(filename, save_all=True, append_images=self.frames[1:], duration=100, loop=0)
         print("GIF successfully saved!")
+    
